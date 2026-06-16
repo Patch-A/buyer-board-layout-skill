@@ -137,3 +137,4 @@ These bundled assets are reference-grade examples, not universal truth:
 - When shape names are unstable or non-ASCII, inspect slide coordinates and identify targets by position.
 - If the latest generated PPT exists in the same folder as the text draft, do not accidentally reuse the generated output as the next input source.
 - Keep scripts ASCII-friendly where possible to reduce encoding issues in PowerShell and automation.
+- Treat the current version as parameterized and reusable, but not yet universally template-agnostic. For a new layout family, first decompose the template and create or update the matching image-position config.
