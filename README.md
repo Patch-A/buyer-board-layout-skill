@@ -1,6 +1,6 @@
 # buyer-board-layout
 
-Codex skill for buyer-board PPT template decomposition, content filling, image placement, and final export.
+Codex skill for buyer-board PPT template decomposition, layout-config generation, content filling, image placement, and final export.
 
 ## What this repo contains
 
@@ -12,17 +12,25 @@ Codex skill for buyer-board PPT template decomposition, content filling, image p
 This repository already supports:
 
 - template-based buyer-board generation
+- layout-config scaffold generation from a reference PPT
 - structured buyer text filling
 - separate logo and site-image placement
 - preview export
+- one-click pipeline execution
 
 It is currently strongest when used with:
 
 - a manually adjusted reference PPT
 - explicit buyer JSON data
-- explicit image placement config JSON
+- explicit `layout-config.json`
 
-The next iteration direction is broader template generalization, so more layouts can be decomposed and filled with less manual coordinate setup.
+The workflow is now:
+
+1. Input template or manually adjusted reference PPT
+2. Generate or refine `layout-config.json`
+3. Prepare `buyers.json`
+4. Run the one-click pipeline
+5. Inspect exported PPT and preview PNGs
 
 ## One-click usage
 
@@ -32,7 +40,19 @@ Example:
 python scripts/run_buyer_board_pipeline.py ^
   --template "buyer-board-layout/assets/examples/buyer-manual-reference.pptx" ^
   --buyers "buyer-board-layout/assets/examples/sa-buyers.json" ^
-  --config "buyer-board-layout/assets/examples/sa-image-config.json" ^
+  --layout-config "buyer-board-layout/assets/examples/sa-layout-config.json" ^
+  --output "output/sa-finished.pptx" ^
+  --preview-dir "output/previews" ^
+  --workspace "output/workspace"
+```
+
+Optional title overrides:
+
+```bash
+python scripts/run_buyer_board_pipeline.py ^
+  --template "buyer-board-layout/assets/examples/buyer-manual-reference.pptx" ^
+  --buyers "buyer-board-layout/assets/examples/sa-buyers.json" ^
+  --layout-config "buyer-board-layout/assets/examples/sa-layout-config.json" ^
   --output "output/sa-finished.pptx" ^
   --preview-dir "output/previews" ^
   --workspace "output/workspace" ^
@@ -46,6 +66,28 @@ The script generates:
 - a text draft PPT
 - a final PPT with logos and visuals
 - slide preview PNG files
+
+## Layout-config generator scaffold
+
+Use the generator when you have a new manually adjusted PPT and want a starter config:
+
+```bash
+python buyer-board-layout/scripts/generate_layout_config.py ^
+  --template "path/to/reference.pptx" ^
+  --output "path/to/layout-config.json" ^
+  --cover-title "请替换封面标题" ^
+  --cover-country "国家：请替换" ^
+  --content-title "请替换内容页标题"
+```
+
+The generator currently:
+
+- detects likely cover title and country text boxes
+- detects the first content table and row labels
+- detects likely content title and footer text boxes
+- extracts per-slide logo and right-image slot heuristics
+
+This output is a starter scaffold and should still be visually checked before production use.
 
 ## Sharing
 
