@@ -1,11 +1,12 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [Parameter(Mandatory = $true)][string]$InputPpt,
-    [Parameter(Mandatory = $true)][string]$ConfigJson,
+    [Parameter(Mandatory = $true)][string]$BuyersJson,
+    [Parameter(Mandatory = $true)][string]$LayoutConfigJson,
     [Parameter(Mandatory = $true)][string]$OutputPpt,
     [Parameter(Mandatory = $true)][string]$PreviewDir
 )
+
+$ErrorActionPreference = "Stop"
 
 function Get-ShapeAtPosition {
     param(
@@ -113,16 +114,20 @@ function Add-LogoPicture {
 
 function Remove-HeaderArtifacts {
     param(
-        $Slide
+        $Slide,
+        [double]$Left,
+        [double]$Top,
+        [double]$Right,
+        [double]$Bottom
     )
 
     $toDelete = @()
     foreach ($shape in $Slide.Shapes) {
         if (
-            $shape.Left -ge 55 -and
-            $shape.Left -le 180 -and
-            $shape.Top -ge 100 -and
-            $shape.Top -le 155 -and
+            $shape.Left -ge $Left -and
+            $shape.Left -le $Right -and
+            $shape.Top -ge $Top -and
+            $shape.Top -le $Bottom -and
             ($shape.Type -eq 28 -or $shape.Type -eq 13)
         ) {
             $toDelete += $shape
@@ -138,11 +143,21 @@ if (-not (Test-Path -LiteralPath $InputPpt)) {
     throw "Input PPT not found."
 }
 
-if (-not (Test-Path -LiteralPath $ConfigJson)) {
-    throw "Config JSON not found."
+if (-not (Test-Path -LiteralPath $BuyersJson)) {
+    throw "Buyers JSON not found."
 }
 
-$slideAssets = Get-Content -Raw -LiteralPath $ConfigJson | ConvertFrom-Json
+if (-not (Test-Path -LiteralPath $LayoutConfigJson)) {
+    throw "Layout config JSON not found."
+}
+
+$buyers = Get-Content -Raw -Encoding UTF8 -LiteralPath $BuyersJson | ConvertFrom-Json
+$layout = Get-Content -Raw -Encoding UTF8 -LiteralPath $LayoutConfigJson | ConvertFrom-Json
+$slideAssets = @{}
+foreach ($item in $layout.images.slides) {
+    $slideAssets[[int]$item.slide_offset] = $item
+}
+$startSlideIndex = [int]$layout.content.start_slide_index
 New-Item -ItemType Directory -Force -Path $PreviewDir | Out-Null
 
 $powerPoint = New-Object -ComObject PowerPoint.Application
@@ -151,24 +166,49 @@ $powerPoint.Visible = -1
 try {
     $presentation = $powerPoint.Presentations.Open($InputPpt, $false, $false, $false)
 
-    foreach ($item in $slideAssets) {
-        $slide = $presentation.Slides.Item([int]$item.SlideIndex)
-        $siteTarget = Get-ShapeAtPosition -Slide $slide -Left ([double]$item.SiteLeft) -Top ([double]$item.SiteTop) -AllowedTypes @(13)
-        Replace-PictureShape -Slide $slide -Target $siteTarget -ImagePath $item.SitePath -FillBox $true
+    for ($index = 0; $index -lt $buyers.Count; $index++) {
+        $buyer = $buyers[$index]
+        $slot = $slideAssets[$index]
+        if ($null -eq $slot) {
+            continue
+        }
 
-        if ($null -ne $item.AddLogoLeft) {
-            Remove-HeaderArtifacts -Slide $slide
+        $slide = $presentation.Slides.Item($startSlideIndex + $index)
+
+        if ($null -ne $slot.site -and $null -ne $buyer.site_image_path) {
+            $siteTarget = Get-ShapeAtPosition -Slide $slide -Left ([double]$slot.site.target_left) -Top ([double]$slot.site.target_top) -AllowedTypes @(13)
+            $fillBox = $false
+            if ($null -ne $slot.site.fill) {
+                $fillBox = [bool]$slot.site.fill
+            }
+            Replace-PictureShape -Slide $slide -Target $siteTarget -ImagePath $buyer.site_image_path -FillBox $fillBox
+        }
+
+        if ($null -eq $slot.logo -or $null -eq $buyer.logo_path) {
+            continue
+        }
+
+        if ($slot.logo.mode -eq "add") {
+            if ($null -ne $slot.logo.clear_region) {
+                Remove-HeaderArtifacts `
+                    -Slide $slide `
+                    -Left ([double]$slot.logo.clear_region.left) `
+                    -Top ([double]$slot.logo.clear_region.top) `
+                    -Right ([double]$slot.logo.clear_region.right) `
+                    -Bottom ([double]$slot.logo.clear_region.bottom)
+            }
+
             Add-LogoPicture `
                 -Slide $slide `
-                -ImagePath $item.LogoPath `
-                -Left ([double]$item.AddLogoLeft) `
-                -Top ([double]$item.AddLogoTop) `
-                -Width ([double]$item.AddLogoWidth) `
-                -Height ([double]$item.AddLogoHeight)
+                -ImagePath $buyer.logo_path `
+                -Left ([double]$slot.logo.left) `
+                -Top ([double]$slot.logo.top) `
+                -Width ([double]$slot.logo.width) `
+                -Height ([double]$slot.logo.height)
         }
         else {
-            $logoTarget = Get-ShapeAtPosition -Slide $slide -Left ([double]$item.LogoLeft) -Top ([double]$item.LogoTop) -AllowedTypes @(13)
-            Replace-PictureShape -Slide $slide -Target $logoTarget -ImagePath $item.LogoPath
+            $logoTarget = Get-ShapeAtPosition -Slide $slide -Left ([double]$slot.logo.target_left) -Top ([double]$slot.logo.target_top) -AllowedTypes @(13)
+            Replace-PictureShape -Slide $slide -Target $logoTarget -ImagePath $buyer.logo_path
         }
     }
 
