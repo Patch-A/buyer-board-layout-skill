@@ -74,11 +74,17 @@ Logo sourcing priority:
 2. Precise crop from the official site header or brand area.
 3. User-specified manual crop only if the two options above fail.
 
+Logo layout rule:
+
+- Align the logo to the left edge of the approved logo area so it lines up with the text table below.
+- Trim obvious empty borders before placement when that improves scale and legibility.
+
 Right-side image sourcing priority:
 
-1. Official site hero image.
+1. Official product image or official visual with clear product elements.
 2. Official project or brand image.
 3. Official website screenshot when a better brand visual is unavailable.
+4. AI-generated industry-matched visual only when official sources are unavailable or unusable.
 
 Avoid:
 
@@ -86,12 +92,19 @@ Avoid:
 - Using a decorative illustration unrelated to the buyer's actual business.
 - Reusing one image for both logo and site visual.
 
+Right-side layout rule:
+
+- Crop candidates to the frame aspect ratio before placement.
+- Fill the approved right-side box without overflowing into the table or footer area.
+- Reject images that become unreadable or visually broken after cropping.
+
 ### 5. Use the two-stage generation pattern
 
 Prefer a two-script or two-step workflow:
 
 1. Generate a text-only PPT from the approved template, `buyers.json`, and `layout-config.json`.
-2. Apply image replacement from buyer asset paths and export final PPT plus previews.
+2. Apply image replacement from buyer asset paths and export final PPT plus previews when PowerPoint COM is available.
+3. If PowerPoint COM is unavailable, fall back to the Python image pipeline and still export the PPT.
 
 This pattern makes debugging much easier and prevents image failures from corrupting the text layer.
 
@@ -102,7 +115,9 @@ After export, inspect slide previews and check:
 - Is the text color correct?
 - Is the title still aligned to the approved template?
 - Is the buyer logo real and legible?
+- Is the logo left-aligned with the table block?
 - Is the right-side image sufficiently filled and visually balanced?
+- Was the right-side image chosen from product-first sources before falling back to screenshots?
 - Did any old template artifacts remain on slides that required logo replacement?
 
 If the preview looks wrong, inspect the actual slide shape positions rather than guessing from code.
@@ -119,6 +134,8 @@ Read these files when using this skill:
   Use when generating the text-only PPT layer from a template, structured buyer data, and `layout-config.json`.
 - `scripts/apply_buyer_board_images.ps1`
   Use when replacing logo and right-side image assets in the PPT and exporting slide previews.
+- `scripts/apply_buyer_board_images_fallback.py`
+  Use when PowerPoint COM is unavailable and Codex still needs to place logos and right-side visuals into the PPT.
 - `scripts/generate_layout_config.py`
   Use when turning a manually adjusted reference PPT into a starter `layout-config.json`.
 
@@ -139,6 +156,7 @@ These bundled assets are reference-grade examples, not universal truth:
 
 - Prefer `python-pptx` for deterministic text/table filling.
 - Prefer PowerPoint COM automation for final image placement and preview export when the environment supports it.
+- If PowerPoint COM is unavailable, use the Python fallback image script rather than failing the whole pipeline.
 - When shape names are unstable or non-ASCII, inspect slide coordinates and identify targets by position.
 - If the latest generated PPT exists in the same folder as the text draft, do not accidentally reuse the generated output as the next input source.
 - Keep scripts ASCII-friendly where possible to reduce encoding issues in PowerShell and automation.
