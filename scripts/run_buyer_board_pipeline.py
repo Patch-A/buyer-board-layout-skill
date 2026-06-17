@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def resolve_repo_root() -> Path:
@@ -35,11 +36,37 @@ def run(cmd: list[str]) -> None:
         raise RuntimeError(f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}")
 
 
-def load_json(path: Path):
+def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
-def ensure_layout_config(args, skill_root: Path, workspace: Path) -> str:
+def default_cover_title(args: argparse.Namespace) -> str:
+    if args.cover_title:
+        return args.cover_title
+    if args.country and args.procurement_need:
+        return f"{args.country}{args.procurement_need}买家"
+    return f"{args.country}买家"
+
+
+def default_cover_country(args: argparse.Namespace) -> str | None:
+    if args.cover_country:
+        return args.cover_country
+    if args.country:
+        return f"国家：{args.country}"
+    return None
+
+
+def default_content_title(args: argparse.Namespace) -> str | None:
+    if args.content_title:
+        return args.content_title
+    if args.country and args.procurement_need:
+        return f"{args.country}{args.procurement_need}买家"
+    if args.country:
+        return f"{args.country}买家需求"
+    return None
+
+
+def ensure_layout_config(args: argparse.Namespace, skill_root: Path, workspace: Path) -> str:
     if args.layout_config:
         return args.layout_config
     if not args.country:
@@ -54,17 +81,17 @@ def ensure_layout_config(args, skill_root: Path, workspace: Path) -> str:
         "--output",
         str(generated),
         "--cover-title",
-        args.cover_title or f"{args.country}买家",
+        default_cover_title(args),
         "--cover-country",
-        args.cover_country or f"国家：{args.country}",
+        default_cover_country(args) or "",
         "--content-title",
-        args.content_title or f"{args.country}买家需求",
+        default_content_title(args) or "",
     ]
     run(cmd)
     return str(generated)
 
 
-def generate_buyers_from_research(args, skill_root: Path, workspace: Path) -> Path:
+def generate_buyers_from_research(args: argparse.Namespace, skill_root: Path, workspace: Path) -> Path:
     output_json = workspace / "buyers.generated.json"
     research_dir = workspace / "research"
     cmd = [
@@ -90,6 +117,8 @@ def generate_buyers_from_research(args, skill_root: Path, workspace: Path) -> Pa
 def enrich_buyer_assets(skill_root: Path, buyers_path: Path, workspace: Path) -> Path:
     output_json = workspace / "buyers.with-assets.json"
     assets_dir = workspace / "assets"
+    cache_file = workspace / "asset-cache.json"
+    report_file = workspace / "asset_fetch_report.json"
     cmd = [
         sys.executable,
         str(skill_root / "scripts" / "fetch_buyer_assets.py"),
@@ -99,6 +128,10 @@ def enrich_buyer_assets(skill_root: Path, buyers_path: Path, workspace: Path) ->
         str(output_json),
         "--assets-dir",
         str(assets_dir),
+        "--cache-file",
+        str(cache_file),
+        "--report-file",
+        str(report_file),
     ]
     try:
         run(cmd)
@@ -170,8 +203,8 @@ def main() -> int:
     text_draft = workspace / "text-draft.pptx"
     copied_buyers = copy_assets_to_workspace(buyers_path, workspace)
 
-    country_label = args.cover_country or (f"国家：{args.country}" if args.country else None)
-    content_title = args.content_title or (f"{args.country}{args.procurement_need}买家" if args.country and args.procurement_need else None)
+    country_label = default_cover_country(args)
+    content_title = default_content_title(args)
 
     text_cmd = [
         sys.executable,
@@ -233,6 +266,9 @@ def main() -> int:
     print(args.preview_dir)
     print(copied_buyers)
     print(layout_config)
+    report_path = workspace / "asset_fetch_report.json"
+    if report_path.exists():
+        print(report_path)
     return 0
 
 
