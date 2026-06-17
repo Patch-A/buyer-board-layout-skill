@@ -21,6 +21,9 @@ This repository now supports:
 - image candidate ranking plus size, aspect-ratio, and file-size filtering
 - asset cache reuse to avoid repeated downloads from the same site
 - per-run asset fetch reporting in `workspace/asset_fetch_report.json`
+- social/profile/map candidate-page fallback discovery
+- smarter right-side visual preprocessing with whitespace trim, content-aware crop, and extreme-ratio fallback
+- optional AI right-side visual fallback via `--enable-ai-visual-fallback`
 - separate logo and site-image placement
 - PowerPoint COM image placement with preview export
 - Python fallback image placement when PowerPoint COM is unavailable
@@ -118,7 +121,7 @@ The unified pipeline may produce these reusable artifacts inside `--workspace`:
 
 ## Current boundary
 
-The current V4.3 workflow can automatically generate:
+The current V4.4 workflow can automatically generate:
 
 - buyer name
 - website
@@ -132,6 +135,8 @@ Current limitations:
 - public buyer text research is automated but still depends on model quality and source availability
 - public website asset fetching is automatic but best-effort
 - search-engine candidate pages supplement official-site crawling, but they still prefer same-domain pages for downloads
+- social/profile/map pages are fallback sources, not the first-choice primary source for brand assets
+- AI right-side visual fallback is opt-in and requires a valid OpenAI API key
 - when no verified image is available, the workflow clears placeholder graphics instead of inventing a risky fake logo
 - if a logo asset is SVG, the Python fallback path still requires a working cairo runtime in addition to `cairosvg`
 
