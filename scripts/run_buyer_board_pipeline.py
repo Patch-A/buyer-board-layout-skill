@@ -87,6 +87,26 @@ def generate_buyers_from_research(args, skill_root: Path, workspace: Path) -> Pa
     return output_json
 
 
+def enrich_buyer_assets(skill_root: Path, buyers_path: Path, workspace: Path) -> Path:
+    output_json = workspace / "buyers.with-assets.json"
+    assets_dir = workspace / "assets"
+    cmd = [
+        sys.executable,
+        str(skill_root / "scripts" / "fetch_buyer_assets.py"),
+        "--buyers",
+        str(buyers_path),
+        "--output",
+        str(output_json),
+        "--assets-dir",
+        str(assets_dir),
+    ]
+    try:
+        run(cmd)
+        return output_json
+    except RuntimeError:
+        return buyers_path
+
+
 def copy_assets_to_workspace(buyers_path: Path, workspace_dir: Path) -> Path:
     workspace_dir.mkdir(parents=True, exist_ok=True)
     copied_buyers = workspace_dir / "buyer-board-buyers.json"
@@ -144,6 +164,8 @@ def main() -> int:
     workspace.mkdir(parents=True, exist_ok=True)
 
     buyers_path = Path(args.buyers) if args.buyers else generate_buyers_from_research(args, skill_root, workspace)
+    if not args.buyers:
+        buyers_path = enrich_buyer_assets(skill_root, buyers_path, workspace)
     layout_config = ensure_layout_config(args, skill_root, workspace)
     text_draft = workspace / "text-draft.pptx"
     copied_buyers = copy_assets_to_workspace(buyers_path, workspace)
