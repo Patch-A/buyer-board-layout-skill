@@ -1,20 +1,27 @@
 ---
 name: buyer-board-layout
-description: Build and automate buyer-board PowerPoint workflows that start from a user template, reverse-engineer the layout rules, generate or refine a layout-config, fill buyer/company content, place logos and website visuals, and export a finished deck. Use when Codex needs to turn a manually adjusted PPT buyer-board template into a repeatable production workflow, especially for title/table/logo/image mapping, buyer profile page generation, and template-to-output slide automation.
+description: Build and automate buyer-board PowerPoint workflows that start from a PPT template, decompose or generate layout-config rules, research buyers from a country plus procurement need, fill buyer/company content, place logos and website visuals when available, and export a finished deck. Use when Codex needs to turn a manually adjusted PPT buyer-board template into a reusable production workflow, especially for buyer discovery, title/table/logo/image mapping, buyer profile page generation, and template-to-output slide automation.
 ---
 
 # Buyer Board Layout
 
 ## Overview
 
-Use this skill when the job is not just "edit a PPT", but "standardize a buyer-board production workflow" based on a user-approved template. The expected sequence is:
+Use this skill when the goal is not just "edit one PPT", but "turn a buyer-board template into a repeatable pipeline".
 
-1. Receive a PPT template or a manually adjusted reference deck.
-2. Decompose the template into stable layout rules.
-3. Save the executable mapping as `layout-config.json`.
-4. Map input buyer/company data into the required fields.
-5. Insert buyer logos and official website or brand visuals with separate sourcing logic.
-6. Export a finished PPT and, when useful, slide preview images.
+The workflow now supports two entry modes:
+
+1. Structured mode: user already has `buyers.json`.
+2. Auto-research mode: user only provides the PPT template, target `country`, and `procurement need`.
+
+Expected production sequence:
+
+1. Input the PPT template or manually adjusted reference deck.
+2. Generate or refine `layout-config.json`.
+3. Either load existing `buyers.json` or research buyer profiles from `country + procurement need`.
+4. Fill buyer text fields into the approved template.
+5. Place logos and right-side visuals when assets are available.
+6. Export final PPT and previews when the environment supports them.
 
 ## Workflow
 
@@ -29,111 +36,121 @@ Preserve these constraints unless the user explicitly changes them:
 - Do not add extra fields the user did not request.
 - Treat `logo` and right-side website image as separate assets and separate sourcing steps.
 
-If there are multiple candidate PPTs in the workspace, prefer the one the user identified as the manually adjusted reference deck.
-
 ### 2. Decompose the template before filling content
 
 Extract and document:
 
-- Cover title, country tag, font sizes, font color, alignment.
-- Content-page title position and style.
-- Table position, row labels, font size, font color, line wrapping behavior.
-- Footer text and whether it must be preserved.
-- Buyer logo placement logic.
-- Right-side website image placement logic.
+- cover title, country tag, font sizes, font color, alignment
+- content-page title position and style
+- table position, row labels, font size, font color, line wrapping behavior
+- footer text and whether it must be preserved
+- buyer logo placement logic
+- right-side website image placement logic
 
-Write or update a reusable rule file before trying to mass-produce pages. Use `references/buyer-board-rules.md` as the durable summary, and keep the live template mapping in `layout-config.json`.
+Keep the durable rule summary in `references/buyer-board-rules.md`, and keep the executable mapping in `layout-config.json`.
 
-### 3. Fill text in layers
+If the user only provides a template, use `scripts/generate_layout_config.py` to create a starter config first.
 
-Fill text before touching images.
+### 3. Build buyer data
 
-Required text mapping for the standard buyer page:
+The standard buyer page expects these fields:
 
-- `company`
+- `name`
 - `country`
 - `website`
 - `products`
 - `bio`
+- `logo_path`
+- `site_image_path`
+
+If `buyers.json` is missing, use `scripts/discover_buyer_profiles.py` to generate it from:
+
+- `country`
+- `procurement need`
+- optional `buyer_count`
+
+Rules for auto-research mode:
+
+- prefer real companies with official websites
+- prefer enterprises that are actual buyers, distributors, project developers, integrators, manufacturers, or large procurement entities
+- output a 120-Chinese-character company bio
+- normalize website to domain only
+- keep `logo_path` and `site_image_path` empty if assets are not yet sourced
+
+### 4. Fill text first
+
+Fill text before touching images.
 
 Rules:
 
-- Keep title text white.
-- Keep body text blue close to `#2A49F4`.
-- Prefer `Microsoft YaHei` for Chinese text unless the template clearly uses another font.
-- Expand buyer introductions when the user requires a minimum character count.
-- Do not shrink text aggressively just to force content to fit; prefer following the approved template proportions.
+- keep title text white
+- keep body text blue near `#2A49F4`
+- prefer `Microsoft YaHei` for Chinese text unless the template clearly uses another font
+- do not shrink text aggressively just to force content to fit
 
-### 4. Insert logos and right-side visuals separately
+### 5. Insert logos and right-side visuals separately
 
 Never crop a logo from the right-side website image.
 
 Logo sourcing priority:
 
-1. Official logo asset from the company site or official brand source.
-2. Precise crop from the official site header or brand area.
-3. User-specified manual crop only if the two options above fail.
-
-Logo layout rule:
-
-- Align the logo to the left edge of the approved logo area so it lines up with the text table below.
-- Trim obvious empty borders before placement when that improves scale and legibility.
+1. official logo asset from the company site or official brand source
+2. precise crop from the official site header or brand area
+3. user-specified manual crop only if the two options above fail
 
 Right-side image sourcing priority:
 
-1. Official product image or official visual with clear product elements.
-2. Official project or brand image.
-3. Official website screenshot when a better brand visual is unavailable.
-4. AI-generated industry-matched visual only when official sources are unavailable or unusable.
+1. official product image or official visual with clear product elements
+2. official project or brand image
+3. official website screenshot
+4. AI-generated industry-matched visual only when official sources are unavailable or unusable
 
-Avoid:
+Layout rules:
 
-- Random full-page crops.
-- Using a decorative illustration unrelated to the buyer's actual business.
-- Reusing one image for both logo and site visual.
+- logo must align to the left edge of the approved logo area so it lines up with the text table below
+- right-side images must be cropped to the frame aspect ratio before placement
+- fill the approved right-side box without overflowing into the table or footer area
 
-Right-side layout rule:
+If image assets are missing in auto mode:
 
-- Crop candidates to the frame aspect ratio before placement.
-- Fill the approved right-side box without overflowing into the table or footer area.
-- Reject images that become unreadable or visually broken after cropping.
+- remove placeholder graphics rather than leaving incorrect old images in place
+- allow the PPT to export with text-only completeness
 
-### 5. Use the two-stage generation pattern
+### 6. Use the unified pipeline
 
-Prefer a two-script or two-step workflow:
+Prefer the unified entry script:
 
-1. Generate a text-only PPT from the approved template, `buyers.json`, and `layout-config.json`.
-2. Apply image replacement from buyer asset paths and export final PPT plus previews when PowerPoint COM is available.
-3. If PowerPoint COM is unavailable, fall back to the Python image pipeline and still export the PPT.
+- `scripts/run_buyer_board_pipeline.py`
 
-This pattern makes debugging much easier and prevents image failures from corrupting the text layer.
+It now supports:
 
-### 6. Verify visually
+- existing `buyers.json` mode
+- `country + procurement need` auto-research mode
+- auto-generated `layout-config.json` when the user only supplies a template
 
-After export, inspect slide previews and check:
+### 7. Verify visually
 
-- Is the text color correct?
-- Is the title still aligned to the approved template?
-- Is the buyer logo real and legible?
-- Is the logo left-aligned with the table block?
-- Is the right-side image sufficiently filled and visually balanced?
-- Was the right-side image chosen from product-first sources before falling back to screenshots?
-- Did any old template artifacts remain on slides that required logo replacement?
+After export, inspect previews and check:
 
-If the preview looks wrong, inspect the actual slide shape positions rather than guessing from code.
+- is the text color correct
+- is the title aligned to the approved template
+- is the buyer logo authentic and legible when present
+- is the logo left-aligned with the table block
+- is the right-side image filled and visually balanced when present
+- were placeholder graphics cleared when no image asset was available
 
 ## Files To Read
 
-Read these files when using this skill:
-
 - `references/buyer-board-rules.md`
-  Use when you need the decomposed layout standard and non-negotiable formatting rules.
+  Use for the decomposed layout standard and formatting rules.
 - `references/sa-example-data.md`
-  Use when you need a concrete sample of buyer input structure.
+  Use for the expected buyer input structure.
+- `scripts/discover_buyer_profiles.py`
+  Use when the user only provides country and procurement need and Codex must generate buyer data first.
 - `scripts/fill_buyer_board_text.py`
   Use when generating the text-only PPT layer from a template, structured buyer data, and `layout-config.json`.
 - `scripts/apply_buyer_board_images.ps1`
-  Use when replacing logo and right-side image assets in the PPT and exporting slide previews.
+  Use when replacing logo and right-side image assets in the PPT and exporting slide previews through PowerPoint COM.
 - `scripts/apply_buyer_board_images_fallback.py`
   Use when PowerPoint COM is unavailable and Codex still needs to place logos and right-side visuals into the PPT.
 - `scripts/generate_layout_config.py`
@@ -144,20 +161,15 @@ Read these files when using this skill:
 These bundled assets are reference-grade examples, not universal truth:
 
 - `assets/examples/buyer-manual-reference.pptx`
-  Example manually adjusted reference deck used to derive rules.
 - `assets/examples/sa-text-draft-input.pptx`
-  Example text-layer input deck for the image replacement step.
 - `assets/examples/sa-images/`
-  Example image assets and sourced logo/site visuals used during South Africa buyer-board production.
 - `assets/examples/sa-layout-config.json`
-  Example layout config that maps the South Africa template structure and image slots.
 
 ## Operating Notes
 
-- Prefer `python-pptx` for deterministic text/table filling.
+- Prefer `python-pptx` for deterministic text and table filling.
 - Prefer PowerPoint COM automation for final image placement and preview export when the environment supports it.
 - If PowerPoint COM is unavailable, use the Python fallback image script rather than failing the whole pipeline.
-- When shape names are unstable or non-ASCII, inspect slide coordinates and identify targets by position.
-- If the latest generated PPT exists in the same folder as the text draft, do not accidentally reuse the generated output as the next input source.
+- Auto-research mode currently depends on the OpenAI Python SDK and `OPENAI_API_KEY`.
 - Keep scripts ASCII-friendly where possible to reduce encoding issues in PowerShell and automation.
-- Treat the current version as parameterized and reusable, but not yet universally template-agnostic. For a new layout family, first decompose the template and create or update the matching `layout-config.json`.
+- Treat the current version as configuration-driven and reusable, but still verify the first run of any new template family before mass production.
