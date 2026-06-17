@@ -76,15 +76,17 @@ After buyer data is generated, use `scripts/fetch_buyer_assets.py` to try to fet
 - favicon or header-brand assets
 - right-side public visuals from `og:image` or product-like page images
 
-V4.3 asset-sourcing refinements:
+V4.4 asset-sourcing refinements:
 
 - do not stop at the homepage
 - expand into a small set of same-domain product, solution, application, project, about, or company pages
 - add search-engine candidate pages as a supplement to official-site discovery
+- allow fallback candidate pages from public social/profile or map-style listings when the official site is weak or unavailable
 - rank candidates before downloading them
 - filter candidates by file size, image dimensions, and aspect ratio
 - cache per-site asset fetch results so repeated runs do not refetch the same domain
 - write a per-buyer sourcing summary to `asset_fetch_report.json`
+- optionally generate an AI right-side visual when public assets still fail and the user enables the fallback
 
 Rules for auto-research mode:
 
@@ -125,7 +127,9 @@ Right-side image sourcing priority:
 Layout rules:
 
 - logo must align to the left edge of the approved logo area so it lines up with the text table below
-- right-side images must be cropped to the frame aspect ratio before placement
+- right-side images must be preprocessed before placement, not blindly center-cropped
+- trim obvious blank borders before right-side crop decisions
+- use content-aware crop first, then fall back to a full-subject blurred-backdrop composition for extreme aspect ratios
 - fill the approved right-side box without overflowing into the table or footer area
 
 If image assets are missing in auto mode:
@@ -145,6 +149,7 @@ It now supports:
 - `country + procurement need` auto-research mode
 - auto-generated `layout-config.json` when the user only supplies a template
 - workspace-level `asset-cache.json` and `asset_fetch_report.json` outputs
+- optional `--enable-ai-visual-fallback` for right-side visual generation
 
 ### 7. Verify visually
 
