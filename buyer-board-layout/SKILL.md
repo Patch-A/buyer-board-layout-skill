@@ -9,10 +9,10 @@ description: Build and automate buyer-board PowerPoint workflows that start from
 
 Use this skill when the goal is not just "edit one PPT", but "turn a buyer-board template into a repeatable pipeline".
 
-The workflow now supports two entry modes:
+The workflow supports two entry modes:
 
-1. Structured mode: user already has `buyers.json`.
-2. Auto-research mode: user only provides the PPT template, target `country`, and `procurement need`.
+1. Structured mode: the user already has `buyers.json`.
+2. Auto-research mode: the user only provides the PPT template, target `country`, and `procurement need`.
 
 Expected production sequence:
 
@@ -76,11 +76,15 @@ After buyer data is generated, use `scripts/fetch_buyer_assets.py` to try to fet
 - favicon or header-brand assets
 - right-side public visuals from `og:image` or product-like page images
 
-V4.2 refinement:
+V4.3 asset-sourcing refinements:
 
 - do not stop at the homepage
 - expand into a small set of same-domain product, solution, application, project, about, or company pages
-- rank image candidates before downloading them
+- add search-engine candidate pages as a supplement to official-site discovery
+- rank candidates before downloading them
+- filter candidates by file size, image dimensions, and aspect ratio
+- cache per-site asset fetch results so repeated runs do not refetch the same domain
+- write a per-buyer sourcing summary to `asset_fetch_report.json`
 
 Rules for auto-research mode:
 
@@ -140,6 +144,7 @@ It now supports:
 - existing `buyers.json` mode
 - `country + procurement need` auto-research mode
 - auto-generated `layout-config.json` when the user only supplies a template
+- workspace-level `asset-cache.json` and `asset_fetch_report.json` outputs
 
 ### 7. Verify visually
 
