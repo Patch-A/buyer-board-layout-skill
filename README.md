@@ -1,90 +1,119 @@
 # buyer-board-layout
 
-Codex skill for buyer-board PPT template decomposition, layout-config generation, content filling, image placement, and final export.
+Codex skill for buyer-board PPT template decomposition, buyer research, layout-config generation, content filling, image placement, and final export.
 
 ## What this repo contains
 
 - `buyer-board-layout/`: the actual Codex skill
-- `scripts/run_buyer_board_pipeline.py`: one-click entry script
+- `scripts/run_buyer_board_pipeline.py`: one-click unified entry script
 
 ## Current maturity
 
-This repository already supports:
+This repository now supports:
 
 - template-based buyer-board generation
 - layout-config scaffold generation from a reference PPT
 - structured buyer text filling
+- country + procurement-need driven buyer research
 - separate logo and site-image placement
 - PowerPoint COM image placement with preview export
 - Python fallback image placement when PowerPoint COM is unavailable
 - one-click pipeline execution
 
-It is currently strongest when used with:
+## Input modes
 
-- a manually adjusted reference PPT
-- explicit buyer JSON data
-- explicit `layout-config.json`
+### Mode 1: Existing buyers.json
 
-The workflow is now:
+Use this when you already have buyer data prepared.
 
-1. Input template or manually adjusted reference PPT
-2. Generate or refine `layout-config.json`
-3. Prepare `buyers.json`
-4. Run the one-click pipeline
-5. Inspect exported PPT and preview PNGs
+### Mode 2: Auto-research mode
 
-## V3 updates
+Use this when you only have:
 
-This version adds:
+- a PPT template
+- a target country
+- a procurement need
 
-- left-aligned logo placement that matches the table block
-- product-first right-image selection guidance
-- crop-to-frame right-image fitting instead of overflow-prone scaling
-- AI-generated fallback visuals when official imagery is unavailable
-- automatic Python fallback when PowerPoint COM is not available
+The pipeline will:
 
-Right-side image selection now follows a strict priority:
+1. generate `layout-config.json` if you do not provide one
+2. research buyers and generate `buyers.json`
+3. fill the PPT
+4. place verified image assets when available
+5. remove placeholder images when assets are unavailable
 
-1. official product image or image with clear product elements
-2. official project or brand image
-3. official website screenshot
-4. AI-generated fallback only when public official imagery is unavailable or unusable
+## Dependencies for auto-research mode
+
+Install the OpenAI SDK first:
+
+```bash
+pip install -r requirements.txt
+```
+
+Set your API key:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+```
+
+Optional model override:
+
+```bash
+set BUYER_RESEARCH_MODEL=gpt-4.1
+```
 
 ## One-click usage
 
-Example:
+### Existing buyers.json mode
 
 ```bash
 python scripts/run_buyer_board_pipeline.py ^
   --template "buyer-board-layout/assets/examples/buyer-manual-reference.pptx" ^
   --buyers "buyer-board-layout/assets/examples/sa-buyers.json" ^
   --layout-config "buyer-board-layout/assets/examples/sa-layout-config.json" ^
-  --output "output/sa-finished.pptx" ^
+  --output "output/finished.pptx" ^
   --preview-dir "output/previews" ^
   --workspace "output/workspace"
 ```
 
-Optional title overrides:
+### Auto-research mode
 
 ```bash
 python scripts/run_buyer_board_pipeline.py ^
-  --template "buyer-board-layout/assets/examples/buyer-manual-reference.pptx" ^
-  --buyers "buyer-board-layout/assets/examples/sa-buyers.json" ^
-  --layout-config "buyer-board-layout/assets/examples/sa-layout-config.json" ^
-  --output "output/sa-finished.pptx" ^
+  --template "path/to/template.pptx" ^
+  --country "南非" ^
+  --procurement-need "动力传动" ^
+  --output "output/finished.pptx" ^
   --preview-dir "output/previews" ^
-  --workspace "output/workspace" ^
-  --cover-title "2026南非新能源买家" ^
-  --cover-country "国家：南非" ^
-  --content-title "南非买家需求"
+  --workspace "output/workspace"
 ```
 
-The script generates:
+Optional controls:
 
-- a text draft PPT
-- a final PPT with logos and visuals
-- slide preview PNG files when PowerPoint COM is available
-- a preview note when the Python fallback path is used
+- `--buyer-count 5`
+- `--layout-config path/to/layout-config.json`
+- `--cover-title "南非动力传动买家"`
+- `--cover-country "国家：南非"`
+- `--content-title "南非动力传动买家"`
+- `--openai-model gpt-4.1`
+
+## Current boundary
+
+The current V4 workflow can automatically generate:
+
+- buyer name
+- website
+- procurement products
+- 120-Chinese-character company bio
+
+It can also continue the PPT pipeline even when no verified logo or right-side image is available.
+
+Current limitation:
+
+- public buyer text research is automated
+- image asset sourcing is still semi-automatic
+- when no verified image is available, the workflow clears placeholder graphics instead of inventing a risky fake logo
+- if a logo asset is SVG, the Python fallback path still requires a working cairo runtime in addition to `cairosvg`
 
 ## Privacy note
 
@@ -95,7 +124,7 @@ When sharing this skill publicly, prefer:
 - blank or redacted templates
 - generic `layout-config.json` samples
 - sanitized `buyers.json` examples
-- documentation of the workflow rather than real customer deliverables
+- workflow documentation rather than real customer deliverables
 
 ## Layout-config generator scaffold
 
