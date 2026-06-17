@@ -27,10 +27,22 @@ def normalize_image(path: Path, temp_dir: Path) -> Path:
         return path
 
     if suffix == ".svg":
-        import cairosvg
+        try:
+            import cairosvg
+        except Exception as exc:
+            raise RuntimeError(
+                "SVG conversion requires cairosvg with a working cairo runtime. "
+                f"Install cairo or replace the SVG logo with PNG/JPG. Source: {path}"
+            ) from exc
 
         out = temp_dir / f"{path.stem}.png"
-        cairosvg.svg2png(url=str(path), write_to=str(out))
+        try:
+            cairosvg.svg2png(url=str(path), write_to=str(out))
+        except Exception as exc:
+            raise RuntimeError(
+                "Failed to convert SVG logo. Install cairo or replace the SVG logo with PNG/JPG. "
+                f"Source: {path}"
+            ) from exc
         return out
 
     if suffix == ".webp":
@@ -124,6 +136,14 @@ def replace_picture(slide, target, image_path: Path, fill: bool, temp_dir: Path 
     fit_into_box(new_shape, left, top, width, height, False, align_left=True)
 
 
+def clear_picture_target(slide, left_pt: float, top_pt: float) -> None:
+    try:
+        target = find_shape(slide, left_pt, top_pt)
+    except ValueError:
+        return
+    remove_shape(target)
+
+
 def clear_region(slide, region: dict[str, float]) -> None:
     left = Pt(region["left"])
     top = Pt(region["top"])
@@ -176,17 +196,30 @@ def main() -> int:
             site_asset = Path(buyer["site_image_path"])
             target = find_shape(slide, float(site_cfg["target_left"]), float(site_cfg["target_top"]))
             replace_picture(slide, target, site_asset, bool(site_cfg.get("fill", False)), temp_dir=temp_dir)
+        elif slot.get("site"):
+            clear_picture_target(slide, float(slot["site"]["target_left"]), float(slot["site"]["target_top"]))
 
         if slot.get("logo") and buyer.get("logo_path"):
             logo_cfg = slot["logo"]
-            logo_asset = prepare_logo_image(Path(buyer["logo_path"]), temp_dir)
+            try:
+                logo_asset = prepare_logo_image(Path(buyer["logo_path"]), temp_dir)
+            except RuntimeError:
+                logo_asset = None
             if logo_cfg["mode"] == "add":
                 if logo_cfg.get("clear_region"):
                     clear_region(slide, logo_cfg["clear_region"])
-                add_logo(slide, logo_asset, logo_cfg)
+                if logo_asset is not None:
+                    add_logo(slide, logo_asset, logo_cfg)
             else:
-                target = find_shape(slide, float(logo_cfg["target_left"]), float(logo_cfg["target_top"]))
-                replace_picture(slide, target, logo_asset, False, temp_dir=temp_dir)
+                if logo_asset is not None:
+                    target = find_shape(slide, float(logo_cfg["target_left"]), float(logo_cfg["target_top"]))
+                    replace_picture(slide, target, logo_asset, False, temp_dir=temp_dir)
+                else:
+                    clear_picture_target(slide, float(logo_cfg["target_left"]), float(logo_cfg["target_top"]))
+        elif slot.get("logo") and slot["logo"]["mode"] == "replace":
+            clear_picture_target(slide, float(slot["logo"]["target_left"]), float(slot["logo"]["target_top"]))
+        elif slot.get("logo") and slot["logo"]["mode"] == "add" and slot["logo"].get("clear_region"):
+            clear_region(slide, slot["logo"]["clear_region"])
 
     output_ppt = Path(args.output_ppt)
     output_ppt.parent.mkdir(parents=True, exist_ok=True)
