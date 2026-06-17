@@ -4,7 +4,7 @@ Codex skill for buyer-board PPT template decomposition, buyer research, layout-c
 
 ## What this repo contains
 
-- `buyer-board-layout/`: the actual Codex skill
+- `buyer-board-layout/`: the Codex skill
 - `scripts/run_buyer_board_pipeline.py`: one-click unified entry script
 
 ## Current maturity
@@ -15,8 +15,12 @@ This repository now supports:
 - layout-config scaffold generation from a reference PPT
 - structured buyer text filling
 - country + procurement-need driven buyer research
-- public website driven buyer asset fetching
-- multi-page official-site asset discovery and ranking
+- public-website buyer asset fetching
+- same-domain page expansion from homepage links
+- search-engine candidate page discovery as a supplement to site crawling
+- image candidate ranking plus size, aspect-ratio, and file-size filtering
+- asset cache reuse to avoid repeated downloads from the same site
+- per-run asset fetch reporting in `workspace/asset_fetch_report.json`
 - separate logo and site-image placement
 - PowerPoint COM image placement with preview export
 - Python fallback image placement when PowerPoint COM is unavailable
@@ -40,14 +44,14 @@ The pipeline will:
 
 1. generate `layout-config.json` if you do not provide one
 2. research buyers and generate `buyers.json`
-3. try to fetch official public logo and right-side visuals from each buyer website
+3. try to fetch public logo and right-side visuals from each buyer's public web presence
 4. fill the PPT
 5. place verified image assets when available
 6. remove placeholder images when assets are unavailable
 
 ## Dependencies for auto-research mode
 
-Install the OpenAI SDK first:
+Install dependencies first:
 
 ```bash
 pip install -r requirements.txt
@@ -100,9 +104,21 @@ Optional controls:
 - `--content-title "南非动力传动买家"`
 - `--openai-model gpt-4.1`
 
+## Workspace outputs
+
+The unified pipeline may produce these reusable artifacts inside `--workspace`:
+
+- `buyers.generated.json`: AI-researched buyer list
+- `buyers.with-assets.json`: buyer list enriched with fetched asset paths
+- `layout-config.generated.json`: starter layout config when one is not supplied
+- `asset-cache.json`: site-level asset cache to avoid duplicate fetching
+- `asset_fetch_report.json`: per-buyer hit report for logo and right-side visual sourcing
+- `assets/`: downloaded public image assets
+- `research/`: intermediate buyer research files
+
 ## Current boundary
 
-The current V4 workflow can automatically generate:
+The current V4.3 workflow can automatically generate:
 
 - buyer name
 - website
@@ -111,17 +127,17 @@ The current V4 workflow can automatically generate:
 
 It can also continue the PPT pipeline even when no verified logo or right-side image is available.
 
-Current limitation:
+Current limitations:
 
-- public buyer text research is automated
+- public buyer text research is automated but still depends on model quality and source availability
 - public website asset fetching is automatic but best-effort
-- V4.2 now expands from the homepage into a small set of official product, solution, about, project, and company pages before ranking candidates
+- search-engine candidate pages supplement official-site crawling, but they still prefer same-domain pages for downloads
 - when no verified image is available, the workflow clears placeholder graphics instead of inventing a risky fake logo
 - if a logo asset is SVG, the Python fallback path still requires a working cairo runtime in addition to `cairosvg`
 
 ## Privacy note
 
-Do not publish client-specific finished decks, private sample projects, or generated preview outputs in the public repo or release assets.
+Do not publish client-specific finished decks, private sample projects, generated preview outputs, or real customer deliverables in the public repo or release assets.
 
 When sharing this skill publicly, prefer:
 
