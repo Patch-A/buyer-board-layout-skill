@@ -94,6 +94,17 @@ function Replace-PictureShape {
     }
 }
 
+function Remove-PictureTarget {
+    param(
+        $Slide,
+        [double]$Left,
+        [double]$Top
+    )
+
+    $target = Get-ShapeAtPosition -Slide $Slide -Left $Left -Top $Top -AllowedTypes @(13)
+    $target.Delete()
+}
+
 function Add-LogoPicture {
     param(
         $Slide,
@@ -175,7 +186,7 @@ try {
 
         $slide = $presentation.Slides.Item($startSlideIndex + $index)
 
-        if ($null -ne $slot.site -and $null -ne $buyer.site_image_path) {
+        if ($null -ne $slot.site -and -not [string]::IsNullOrWhiteSpace([string]$buyer.site_image_path)) {
             $siteTarget = Get-ShapeAtPosition -Slide $slide -Left ([double]$slot.site.target_left) -Top ([double]$slot.site.target_top) -AllowedTypes @(13)
             $fillBox = $false
             if ($null -ne $slot.site.fill) {
@@ -183,8 +194,26 @@ try {
             }
             Replace-PictureShape -Slide $slide -Target $siteTarget -ImagePath $buyer.site_image_path -FillBox $fillBox
         }
+        elseif ($null -ne $slot.site) {
+            Remove-PictureTarget -Slide $slide -Left ([double]$slot.site.target_left) -Top ([double]$slot.site.target_top)
+        }
 
-        if ($null -eq $slot.logo -or $null -eq $buyer.logo_path) {
+        if ($null -eq $slot.logo) {
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$buyer.logo_path)) {
+            if ($slot.logo.mode -eq "replace") {
+                Remove-PictureTarget -Slide $slide -Left ([double]$slot.logo.target_left) -Top ([double]$slot.logo.target_top)
+            }
+            elseif ($null -ne $slot.logo.clear_region) {
+                Remove-HeaderArtifacts `
+                    -Slide $slide `
+                    -Left ([double]$slot.logo.clear_region.left) `
+                    -Top ([double]$slot.logo.clear_region.top) `
+                    -Right ([double]$slot.logo.clear_region.right) `
+                    -Bottom ([double]$slot.logo.clear_region.bottom)
+            }
             continue
         }
 
