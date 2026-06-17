@@ -59,6 +59,11 @@ Preferred order:
 2. Precise crop from official header or brand area.
 3. User-approved manual crop.
 
+Placement rule:
+
+- Align the logo to the left edge of the approved logo box so it lines up with the text table below.
+- Prefer preserving legibility over maximizing size; trim obvious empty borders before placement when possible.
+
 Forbidden:
 
 - Cropping logo from the right-side image
@@ -69,9 +74,16 @@ Forbidden:
 
 Preferred order:
 
-1. Official hero image
-2. Official project or brand image
+1. Official product image or official image with clear product elements
+2. Official project, solution, or brand image
 3. Official website screenshot
+4. AI-generated industry-matched visual only when official sources are unavailable or unusable
+
+Fit rule:
+
+- Crop to the target frame aspect ratio before placement.
+- Fill the right-side box without overflowing into the table or footer area.
+- Reject candidates that become unreadable or visually broken after cropping.
 
 Avoid decorative art that does not represent the buyer's actual business.
 
@@ -80,6 +92,8 @@ Avoid decorative art that does not represent the buyer's actual business.
 - Does the title match the approved style?
 - Is the table text blue and readable?
 - Is the logo authentic and legible?
+- Is the logo left-aligned with the table block?
 - Is the right-side image visually filled and balanced?
+- Was the right-side image chosen from product-first sources before falling back to screenshots?
 - Are there leftover template graphics after logo replacement?
 - Was the text-only draft used as input, rather than a previously exported final deck?
