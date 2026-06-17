@@ -76,6 +76,12 @@ After buyer data is generated, use `scripts/fetch_buyer_assets.py` to try to fet
 - favicon or header-brand assets
 - right-side public visuals from `og:image` or product-like page images
 
+V4.2 refinement:
+
+- do not stop at the homepage
+- expand into a small set of same-domain product, solution, application, project, about, or company pages
+- rank image candidates before downloading them
+
 Rules for auto-research mode:
 
 - prefer real companies with official websites
