@@ -21,7 +21,7 @@ def main() -> int:
     source = Path(args.input)
 
     if args.kind == "logo":
-        prepared = prepare_logo_image(source, output_dir)
+        prepared = prepare_logo_image(source, output_dir, args.target_width, args.target_height)
     else:
         if not args.target_width or not args.target_height:
             raise SystemExit("--target-width and --target-height are required for site assets.")
