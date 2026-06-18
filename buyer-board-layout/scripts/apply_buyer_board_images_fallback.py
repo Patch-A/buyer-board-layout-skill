@@ -125,7 +125,14 @@ def main() -> int:
         if slot.get("logo") and buyer.get("logo_path"):
             logo_cfg = slot["logo"]
             try:
-                prepared_logo = prepare_logo_image(Path(buyer["logo_path"]), temp_dir)
+                if logo_cfg["mode"] == "add":
+                    target_width = int(Pt(logo_cfg["width"]))
+                    target_height = int(Pt(logo_cfg["height"]))
+                else:
+                    target = find_shape(slide, float(logo_cfg["target_left"]), float(logo_cfg["target_top"]))
+                    target_width = int(target.width)
+                    target_height = int(target.height)
+                prepared_logo = prepare_logo_image(Path(buyer["logo_path"]), temp_dir, target_width, target_height)
             except RuntimeError:
                 prepared_logo = None
             if logo_cfg["mode"] == "add":
