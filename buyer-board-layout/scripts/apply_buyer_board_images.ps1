@@ -45,6 +45,14 @@ function Prepare-ImageAsset {
             [string][int][Math]::Round($TargetHeight)
         )
     }
+    elseif ($Kind -eq "logo" -and $TargetWidth -gt 0 -and $TargetHeight -gt 0) {
+        $arguments += @(
+            "--target-width",
+            [string][int][Math]::Round($TargetWidth),
+            "--target-height",
+            [string][int][Math]::Round($TargetHeight)
+        )
+    }
     $output = & $pythonExe @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Image preprocessing failed for $ImagePath"
@@ -168,7 +176,7 @@ function Add-LogoPicture {
         throw "Missing image asset: $ImagePath"
     }
 
-    $preparedImagePath = Prepare-ImageAsset -ImagePath $ImagePath -Kind "logo"
+    $preparedImagePath = Prepare-ImageAsset -ImagePath $ImagePath -Kind "logo" -TargetWidth $Width -TargetHeight $Height
     $shape = $Slide.Shapes.AddPicture($preparedImagePath, $false, $true, $Left, $Top, -1, -1)
     Fit-PictureIntoBox -Shape $shape -BoxLeft $Left -BoxTop $Top -BoxWidth $Width -BoxHeight $Height
 }
