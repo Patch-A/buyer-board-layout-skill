@@ -225,7 +225,9 @@ def main() -> int:
         buyers_path = Path(args.buyers) if args.buyers else generate_buyers_from_research(args, skill_root, workspace)
     except Exception as exc:
         write_failure_report(workspace, "buyer_research", exc)
-        raise
+        print(f"Buyer research failed. See: {workspace / 'pipeline_failure.json'}", file=sys.stderr)
+        print(str(exc).split("STDERR:")[-1].strip() or str(exc), file=sys.stderr)
+        return 2
     if not args.buyers:
         buyers_path = enrich_buyer_assets(skill_root, buyers_path, workspace, args.enable_ai_visual_fallback)
     layout_config = ensure_layout_config(args, skill_root, workspace)
