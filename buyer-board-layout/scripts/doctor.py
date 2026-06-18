@@ -56,6 +56,39 @@ def check_powerpoint_com() -> dict[str, object]:
         return {"ok": False, "error": f"{exc.__class__.__name__}: {exc}"}
 
 
+def check_playwright_runtime() -> dict[str, object]:
+    if importlib.util.find_spec("playwright") is None:
+        return {"ok": False, "reason": "module_missing"}
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "from playwright.sync_api import sync_playwright; "
+            "p=sync_playwright().start(); "
+            "b=p.chromium.launch(headless=True); "
+            "page=b.new_page(); "
+            "page.goto('https://example.com', wait_until='domcontentloaded', timeout=10000); "
+            "print(page.title()); "
+            "b.close(); "
+            "p.stop()"
+        ),
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        return {
+            "ok": result.returncode == 0,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+        }
+    except Exception as exc:
+        return {"ok": False, "error": f"{exc.__class__.__name__}: {exc}"}
+
+
 def build_report() -> dict[str, object]:
     return {
         "python": sys.version,
@@ -63,11 +96,12 @@ def build_report() -> dict[str, object]:
         "openai_api_key_visible": bool(get_env_var("OPENAI_API_KEY")),
         "buyer_research_model": get_env_var("BUYER_RESEARCH_MODEL") or "gpt-4.1",
         "curl_fallback_enabled": bool(get_env_var("BUYER_BOARD_ENABLE_CURL_FALLBACK")),
-        "modules": [check_module(name) for name in ("openai", "pptx", "PIL", "cairosvg")],
+        "modules": [check_module(name) for name in ("openai", "pptx", "PIL", "cairosvg", "playwright")],
         "network": [
             check_url("https://www.scatec.com"),
             check_url("https://html.duckduckgo.com/html/?q=scatec"),
         ],
+        "playwright_runtime": check_playwright_runtime(),
         "powerpoint_com": check_powerpoint_com(),
     }
 
