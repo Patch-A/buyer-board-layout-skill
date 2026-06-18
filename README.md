@@ -9,25 +9,23 @@ Codex skill for buyer-board PPT template decomposition, buyer research, layout-c
 
 ## Current maturity
 
-This repository now supports:
+This repository supports:
 
 - template-based buyer-board generation
 - layout-config scaffold generation from a reference PPT
 - structured buyer text filling
 - country + procurement-need driven buyer research
 - public-website buyer asset fetching
-- same-domain page expansion from homepage links
 - search-engine candidate page discovery as a supplement to site crawling
-- image candidate ranking plus size, aspect-ratio, and file-size filtering
-- asset cache reuse to avoid repeated downloads from the same site
-- per-run asset fetch reporting in `workspace/asset_fetch_report.json`
 - social/profile/map candidate-page fallback discovery
+- image candidate ranking plus size, aspect-ratio, and file-size filtering
+- asset cache reuse through `asset-cache.json`
+- per-run asset fetch reporting through `asset_fetch_report.json`
 - smarter right-side visual preprocessing with whitespace trim, content-aware crop, and extreme-ratio fallback
+- logo slot aspect fitting so square or wide logos are not distorted inside narrow template slots
 - optional AI right-side visual fallback via `--enable-ai-visual-fallback`
-- separate logo and site-image placement
-- PowerPoint COM image placement with preview export
-- Python fallback image placement when PowerPoint COM is unavailable
-- one-click pipeline execution
+- WorkBuddy/Windows runtime diagnostics through `doctor.py`
+- PowerPoint COM image placement with Python fallback placement when COM is unavailable
 
 ## Input modes
 
@@ -52,7 +50,7 @@ The pipeline will:
 5. place verified image assets when available
 6. remove placeholder images when assets are unavailable
 
-## Dependencies for auto-research mode
+## Dependencies
 
 Install dependencies first:
 
@@ -60,10 +58,16 @@ Install dependencies first:
 pip install -r requirements.txt
 ```
 
-Set your API key:
+Set your API key for auto-research mode:
 
 ```bash
 set OPENAI_API_KEY=your_key_here
+```
+
+PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="your_key_here"
 ```
 
 Optional model override:
@@ -106,6 +110,30 @@ Optional controls:
 - `--cover-country "国家：南非"`
 - `--content-title "南非动力传动买家"`
 - `--openai-model gpt-4.1`
+- `--enable-ai-visual-fallback`
+
+## WorkBuddy and Windows diagnostics
+
+If auto-research, website image fetching, or PowerPoint export behaves differently after downloading the skill through WorkBuddy, run:
+
+```bash
+python buyer-board-layout/scripts/doctor.py
+```
+
+The report checks:
+
+- whether `OPENAI_API_KEY` is visible from the current runner
+- whether required Python modules are installed
+- whether public website requests are allowed
+- whether PowerPoint COM automation is available
+
+If Python `urllib` requests are blocked but `curl` works in your environment, enable the optional curl fallback:
+
+```powershell
+$env:BUYER_BOARD_ENABLE_CURL_FALLBACK="1"
+```
+
+The unified pipeline also writes `pipeline_failure.json` inside `--workspace` when a key stage fails.
 
 ## Workspace outputs
 
@@ -116,12 +144,13 @@ The unified pipeline may produce these reusable artifacts inside `--workspace`:
 - `layout-config.generated.json`: starter layout config when one is not supplied
 - `asset-cache.json`: site-level asset cache to avoid duplicate fetching
 - `asset_fetch_report.json`: per-buyer hit report for logo and right-side visual sourcing
+- `pipeline_failure.json`: failure details when a pipeline stage fails
 - `assets/`: downloaded public image assets
 - `research/`: intermediate buyer research files
 
 ## Current boundary
 
-The current V4.4 workflow can automatically generate:
+The current workflow can automatically generate:
 
 - buyer name
 - website
@@ -133,8 +162,7 @@ It can also continue the PPT pipeline even when no verified logo or right-side i
 Current limitations:
 
 - public buyer text research is automated but still depends on model quality and source availability
-- public website asset fetching is automatic but best-effort
-- search-engine candidate pages supplement official-site crawling, but they still prefer same-domain pages for downloads
+- public website asset fetching is automatic but best-effort and depends on local network permissions
 - social/profile/map pages are fallback sources, not the first-choice primary source for brand assets
 - AI right-side visual fallback is opt-in and requires a valid OpenAI API key
 - when no verified image is available, the workflow clears placeholder graphics instead of inventing a risky fake logo
