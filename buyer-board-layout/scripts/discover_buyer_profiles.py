@@ -2,22 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
 
+from env_utils import get_env_var
+
 
 SYSTEM_PROMPT = """你是企业采购买家研究助手。
-
 目标：
 1. 根据输入的国家和采购需求，筛选出最相关的潜在买家或采购商。
-2. 每个买家输出：企业名称、官网、具体采购产品、120个中文字符的企业简介。
-3. 优先选择真实存在、官网明确、与采购方向高度匹配的企业。
-4. 企业简介必须是简体中文，且恰好120个中文字符，不要少于或多于120个中文字符。
+2. 每个买家输出企业名称、官网、具体采购产品、120个中文字符的企业简介。
+3. 优先选择真实存在、官网明确、业务与采购方向高度匹配的企业。
+4. 企业简介必须是简体中文，并且恰好120个中文字符，不要少于或多于120个中文字符。
 5. 采购产品字段应尽量具体，使用中文顿号分隔。
-6. 输出必须是合法 JSON，不要输出 JSON 以外的任何文字。
-"""
+6. 输出必须是合法JSON，不要输出JSON以外的任何文字。"""
 
 
 def require_openai() -> Any:
@@ -28,9 +27,13 @@ def require_openai() -> Any:
             "Missing dependency: openai. Install it first with `pip install openai`, "
             "and set OPENAI_API_KEY before using auto research mode."
         ) from exc
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = get_env_var("OPENAI_API_KEY")
     if not api_key:
-        raise SystemExit("OPENAI_API_KEY is required for auto research mode.")
+        raise SystemExit(
+            "OPENAI_API_KEY is required for auto research mode. "
+            "On Windows, set it in the current shell with `$env:OPENAI_API_KEY='...'` "
+            "or as a User environment variable, then restart the runner."
+        )
     return OpenAI(api_key=api_key)
 
 
@@ -46,7 +49,8 @@ def chinese_char_count(text: str) -> int:
 
 def pad_or_trim_bio(text: str) -> str:
     raw = re.sub(r"\s+", "", text or "")
-    chars = [ch for ch in raw if "\u4e00" <= ch <= "\u9fff" or ch in "，。、；："]
+    allowed_punctuation = "，。、；："
+    chars = [ch for ch in raw if "\u4e00" <= ch <= "\u9fff" or ch in allowed_punctuation]
     trimmed = "".join(chars)
     count = chinese_char_count(trimmed)
     if count == 120:
@@ -60,7 +64,7 @@ def pad_or_trim_bio(text: str) -> str:
                 total += 1
                 if total >= 120:
                     break
-        result = "".join(output).rstrip("，。、；：")
+        result = "".join(output).rstrip(allowed_punctuation)
         while chinese_char_count(result) < 120:
             result += "。"
         return result
@@ -78,8 +82,8 @@ def build_user_prompt(country: str, procurement_need: str, buyer_count: int) -> 
     return f"""请研究 {country} 市场中与“{procurement_need}”高度相关的潜在买家或采购商，输出 {buyer_count} 家企业。
 
 筛选要求：
-- 企业必须真实存在，优先官方站点明确、业务与采购方向高度匹配的企业。
-- 优先终端买家、分销商、项目开发商、集成商、制造商或大宗采购主体。
+- 企业必须真实存在，优先官网明确、业务与采购方向高度匹配的企业。
+- 优先终端买家、分销商、项目开发商、集成商、制造商或大型采购主体。
 - 避免输出无明确官网、无业务匹配度、或信息过于模糊的企业。
 
 输出 JSON 结构：
@@ -107,7 +111,7 @@ def build_user_prompt(country: str, procurement_need: str, buyer_count: int) -> 
 
 def fetch_buyers(country: str, procurement_need: str, buyer_count: int, model: str | None) -> list[dict[str, Any]]:
     client = require_openai()
-    model_name = model or os.environ.get("BUYER_RESEARCH_MODEL", "gpt-4.1")
+    model_name = model or get_env_var("BUYER_RESEARCH_MODEL") or "gpt-4.1"
     request_kwargs = {
         "model": model_name,
         "input": [
@@ -160,20 +164,16 @@ def fetch_buyers(country: str, procurement_need: str, buyer_count: int, model: s
     last_error = None
     for tool_type in ("web_search", "web_search_preview"):
         try:
-            response = client.responses.create(
-                tools=[{"type": tool_type}],
-                **request_kwargs,
-            )
+            response = client.responses.create(tools=[{"type": tool_type}], **request_kwargs)
             break
         except Exception as exc:
             last_error = exc
     if response is None:
         raise RuntimeError(
             "Auto research request failed for both web_search and web_search_preview tool types. "
-            "Check your OpenAI SDK version and model access."
+            "Check your OpenAI SDK version, model access, and network permissions."
         ) from last_error
-    content = response.output_text
-    payload = json.loads(content)
+    payload = json.loads(response.output_text)
     return payload["buyers"]
 
 
@@ -219,7 +219,7 @@ def main() -> int:
         "country": args.country,
         "procurement_need": args.procurement_need,
         "buyer_count": args.buyer_count,
-        "model": args.model or os.environ.get("BUYER_RESEARCH_MODEL", "gpt-4.1"),
+        "model": args.model or get_env_var("BUYER_RESEARCH_MODEL") or "gpt-4.1",
     }
     (workspace / "research-meta.json").write_text(json.dumps(notes, ensure_ascii=False, indent=2), encoding="utf-8")
     print(output_path)
