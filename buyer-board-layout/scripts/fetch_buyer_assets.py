@@ -358,6 +358,47 @@ def search_candidate_pages(domain: str, buyer_name: str) -> list[tuple[str, str]
     return deduped[:MAX_PAGE_CANDIDATES]
 
 
+def search_candidate_pages_with_notes(domain: str, buyer_name: str) -> tuple[list[tuple[str, str]], list[str]]:
+    queries = [
+        f"site:{domain} {buyer_name} products",
+        f"site:{domain} {buyer_name} solutions",
+        f"site:{domain} {buyer_name} project",
+        f"{buyer_name} official linkedin",
+        f"{buyer_name} google maps",
+    ]
+    pages: list[tuple[str, str]] = []
+    notes: list[str] = []
+    for query in queries:
+        url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+        try:
+            final_url, body, content_type = fetch_url(url)
+        except Exception as exc:
+            notes.append(f"search_failed:{query}:{exc.__class__.__name__}")
+            continue
+        if not content_type.startswith("text/html"):
+            notes.append(f"search_not_html:{query}:{content_type}")
+            continue
+        html = body.decode("utf-8", errors="ignore")
+        extracted = extract_search_links(final_url, html, domain)
+        notes.append(f"search:{query}:links={len(extracted)}")
+        for link in extracted:
+            host = urlparse(link).netloc.lower()
+            origin = "official"
+            if any(social in host for social in SOCIAL_SOURCES):
+                origin = "social"
+            elif any(m in host for m in MAP_HINTS):
+                origin = "maps"
+            pages.append((link, origin))
+    deduped = []
+    seen = set()
+    for link, origin in pages:
+        if link in seen:
+            continue
+        seen.add(link)
+        deduped.append((link, origin))
+    return deduped[:MAX_PAGE_CANDIDATES], notes
+
+
 def inspect_downloaded_asset(path: Path) -> dict[str, Any]:
     info: dict[str, Any] = {"bytes": path.stat().st_size}
     suffix = path.suffix.lower()
@@ -381,10 +422,12 @@ def inspect_downloaded_asset(path: Path) -> dict[str, Any]:
 
 
 def passes_logo_filter(meta: dict[str, Any], path: Path) -> bool:
-    if meta["bytes"] < MIN_IMAGE_BYTES or meta["bytes"] > MAX_IMAGE_BYTES:
+    if meta["bytes"] > MAX_IMAGE_BYTES:
         return False
     if path.suffix.lower() == ".svg":
-        return True
+        return meta["bytes"] >= 512
+    if meta["bytes"] < MIN_IMAGE_BYTES:
+        return False
     width = meta.get("width") or 0
     height = meta.get("height") or 0
     return width >= MIN_LOGO_WIDTH and height >= MIN_LOGO_HEIGHT
@@ -428,9 +471,11 @@ def discover_assets_for_domain(domain: str, buyer_name: str) -> tuple[str | None
     for base_url in candidate_base_urls(domain):
         try:
             final_url, body, content_type = fetch_url(base_url)
-        except Exception:
+        except Exception as exc:
+            notes.append(f"base_failed:{base_url}:{exc.__class__.__name__}")
             continue
         if not content_type.startswith("text/html"):
+            notes.append(f"base_not_html:{base_url}:{content_type}")
             continue
 
         html = body.decode("utf-8", errors="ignore")
@@ -442,13 +487,16 @@ def discover_assets_for_domain(domain: str, buyer_name: str) -> tuple[str | None
         all_visual_candidates.extend(visuals)
         notes.append(f"base:{final_url}")
 
-        search_pages = search_candidate_pages(domain, buyer_name)
+        search_pages, search_notes = search_candidate_pages_with_notes(domain, buyer_name)
+        notes.extend(search_notes)
         for page_url, origin in dedupe([(u, o) for (u, o) in [(url, "official") for url in page_urls] + search_pages]):
             try:
                 page_final_url, page_body, page_content_type = fetch_url(page_url)
-            except Exception:
+            except Exception as exc:
+                notes.append(f"page_failed:{page_url}:{exc.__class__.__name__}:origin={origin}")
                 continue
             if not page_content_type.startswith("text/html"):
+                notes.append(f"page_not_html:{page_url}:{page_content_type}:origin={origin}")
                 continue
             page_html = page_body.decode("utf-8", errors="ignore")
             page_logos, page_visuals, _ = parse_page(page_final_url, page_html, origin=origin)
@@ -563,6 +611,8 @@ def process_buyer(
     for candidate in logo_candidates[:8]:
         downloaded, meta = download_asset(candidate, assets_dir / f"{slug}-logo", "logo")
         trace.append(f"logo_try:{candidate.src}:score={candidate.score}:origin={candidate.origin}")
+        if not downloaded:
+            trace.append(f"logo_reject:{candidate.src}:{meta}")
         if downloaded:
             logo_path = str(downloaded)
             trace.append(f"logo:{candidate.src}")
@@ -574,6 +624,7 @@ def process_buyer(
         downloaded, meta = download_asset(candidate, assets_dir / f"{slug}-site", "site")
         trace.append(f"site_try:{candidate.src}:score={candidate.score}:origin={candidate.origin}")
         if not downloaded:
+            trace.append(f"site_reject:{candidate.src}:{meta}")
             continue
         try:
             prepared = prepare_site_image(downloaded, assets_dir, 1600, 900)
@@ -605,12 +656,13 @@ def process_buyer(
     buyer["site_image_path"] = site_image_path
     buyer["asset_fetch_notes"] = "; ".join(trace)
 
-    cache[cache_key] = {
-        "logo_path": logo_path,
-        "site_image_path": site_image_path,
-        "site_source": site_source,
-        "asset_fetch_notes": buyer["asset_fetch_notes"],
-    }
+    if logo_path or site_image_path:
+        cache[cache_key] = {
+            "logo_path": logo_path,
+            "site_image_path": site_image_path,
+            "site_source": site_source,
+            "asset_fetch_notes": buyer["asset_fetch_notes"],
+        }
     report["site_source"] = site_source
     report["notes"] = trace
     return buyer, report
