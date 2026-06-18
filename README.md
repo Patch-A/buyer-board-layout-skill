@@ -16,6 +16,7 @@ This repository supports:
 - structured buyer text filling
 - country + procurement-need driven buyer research
 - public-website buyer asset fetching
+- optional Playwright-enhanced rendered-page asset fetching
 - search-engine candidate page discovery as a supplement to site crawling
 - social/profile/map candidate-page fallback discovery
 - image candidate ranking plus size, aspect-ratio, and file-size filtering
@@ -56,6 +57,12 @@ Install dependencies first:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Optional but recommended for browser-enhanced asset mode:
+
+```bash
+playwright install chromium
 ```
 
 Set your API key for auto-research mode:
@@ -110,7 +117,21 @@ Optional controls:
 - `--cover-country "国家：南非"`
 - `--content-title "南非动力传动买家"`
 - `--openai-model gpt-4.1`
+- `--asset-mode light|auto|browser`
+- `--browser-timeout-ms 18000`
 - `--enable-ai-visual-fallback`
+
+Asset mode guidance:
+
+- `light`: current lightweight mode, no browser rendering, lowest runtime cost
+- `auto`: keep lightweight mode first, then use Playwright only when logo or right-side image is still missing
+- `browser`: use Playwright-first rendered-page extraction, highest fetch success rate but heavier runtime
+
+Token and runtime notes:
+
+- `--asset-mode auto` and `--asset-mode browser` do not materially increase OpenAI token usage by themselves
+- browser-enhanced modes do increase local runtime, dependency size, memory usage, and network requests
+- `--enable-ai-visual-fallback` is the step that may add extra model cost when public right-side images cannot be found
 
 ## WorkBuddy and Windows diagnostics
 
@@ -124,6 +145,7 @@ The report checks:
 
 - whether `OPENAI_API_KEY` is visible from the current runner
 - whether required Python modules are installed
+- whether Playwright is installed and Chromium can launch successfully
 - whether public website requests are allowed
 - whether PowerPoint COM automation is available
 
@@ -144,6 +166,7 @@ The unified pipeline may produce these reusable artifacts inside `--workspace`:
 - `layout-config.generated.json`: starter layout config when one is not supplied
 - `asset-cache.json`: site-level asset cache to avoid duplicate fetching
 - `asset_fetch_report.json`: per-buyer hit report for logo and right-side visual sourcing
+- `buyer-board-doctor-report.json`: optional runtime diagnostic report
 - `pipeline_failure.json`: failure details when a pipeline stage fails
 - `assets/`: downloaded public image assets
 - `research/`: intermediate buyer research files
@@ -163,6 +186,7 @@ Current limitations:
 
 - public buyer text research is automated but still depends on model quality and source availability
 - public website asset fetching is automatic but best-effort and depends on local network permissions
+- browser-enhanced asset fetching improves dynamic-site coverage but still depends on local browser runtime and network permissions
 - social/profile/map pages are fallback sources, not the first-choice primary source for brand assets
 - AI right-side visual fallback is opt-in and requires a valid OpenAI API key
 - when no verified image is available, the workflow clears placeholder graphics instead of inventing a risky fake logo
